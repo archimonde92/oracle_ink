@@ -1,5 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
-
+pub use self::prophet_feed_value_storage::ProphetFeedValueStorageRef;
 #[ink::contract]
 mod prophet_feed_value_storage {
     use ink::storage::Mapping;
@@ -10,10 +10,11 @@ mod prophet_feed_value_storage {
     /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct ProphetFeedValueStorage {
-        /// Stores a single `bool` value on the storage.
         storage: Mapping<(i32, i64), i128>,
         latest_rounds: Mapping<i32, i64>,
         verifier_contract_address: AccountId,
+        owner: AccountId,
+        debug: Option<AccountId>,
     }
 
     #[derive(Encode, Decode, Debug, PartialEq, Eq, Copy, Clone)]
@@ -21,17 +22,56 @@ mod prophet_feed_value_storage {
     pub enum Error {
         PairNotExists,
         NotVerifierContract,
+        NotOwner,
+    }
+    #[ink(impl)]
+    impl ProphetFeedValueStorage {
+        fn _is_pair_exists(&self, pair_id: &i32) -> bool {
+            self.latest_rounds.get(pair_id).is_some()
+        }
+
+        fn _get_latest_round_id(&self, pair_id: &i32) -> i64 {
+            self.latest_rounds.get(pair_id).unwrap_or(0)
+        }
+
+        fn _get_price(&self, pair_id: &i32, round_id: &i64) -> i128 {
+            self.storage.get((pair_id, round_id)).unwrap_or(0)
+        }
+
+        fn _ensure_verifier(&mut self) -> Result<(), Error> {
+            let caller = self.env().caller();
+            self.debug = Some(caller);
+            if caller != self.verifier_contract_address {
+                return Err(Error::NotVerifierContract);
+            }
+            Ok(())
+        }
+
+        fn _ensure_owner(&self) -> Result<(), Error> {
+            let caller = self.env().caller();
+            if caller != self.owner {
+                return Err(Error::NotOwner);
+            }
+            Ok(())
+        }
     }
 
     impl ProphetFeedValueStorage {
-        /// Constructor that initializes the `AccountId` value to the given `verifier`.
         #[ink(constructor)]
-        pub fn new(verifier: AccountId) -> Self {
+        pub fn new(owner: AccountId) -> Self {
             Self {
                 storage: Default::default(),
                 latest_rounds: Default::default(),
-                verifier_contract_address: verifier,
+                verifier_contract_address: Self::env().caller(),
+                owner,
+                debug: None,
             }
+        }
+
+        ///Get verifier contract address
+        #[ink(message)]
+        pub fn get_verifier_contract(&self) -> AccountId {
+            self.verifier_contract_address
         }
 
         /// Simply returns the current value of our `bool`.
@@ -45,8 +85,8 @@ mod prophet_feed_value_storage {
 
         #[ink(message)]
         pub fn get_lastest_price(&self, pair_id: i32) -> Result<i128, Error> {
-            let latest_round = self.latest_rounds.get(pair_id);
-            match latest_round {
+            let latest_round_id = self.latest_rounds.get(pair_id);
+            match latest_round_id {
                 None => Err(Error::PairNotExists),
                 Some(round_id) => Ok(self._get_price(&pair_id, &round_id)),
             }
@@ -54,9 +94,7 @@ mod prophet_feed_value_storage {
 
         #[ink(message)]
         pub fn set_price(&mut self, pair_id: i32, round_id: i64, value: i128) -> Result<(), Error> {
-            if !self._is_verifier(self.env().caller()) {
-                return Err(Error::NotVerifierContract);
-            }
+            self._ensure_verifier()?;
             self.storage.insert((pair_id, round_id), &value);
             let latest_round_id = self._get_latest_round_id(&pair_id);
             if latest_round_id < round_id {
@@ -66,24 +104,28 @@ mod prophet_feed_value_storage {
         }
 
         #[ink(message)]
-        pub fn get_verifier_contract(&self) -> AccountId {
-            self.verifier_contract_address
+        pub fn set_verifier_contract(
+            &mut self,
+            new_verifier_contract_address: AccountId,
+        ) -> Result<(), Error> {
+            self._ensure_owner()?;
+            self.verifier_contract_address = new_verifier_contract_address;
+            Ok(())
         }
 
-        fn _is_pair_exists(&self, pair_id: &i32) -> bool {
-            self.latest_rounds.get(pair_id).is_some()
+        #[ink(message)]
+        pub fn get_owner(&self) -> AccountId {
+            self.owner
         }
 
-        fn _get_latest_round_id(&self, pair_id: &i32) -> i64 {
-            self.latest_rounds.get(pair_id).unwrap_or(0)
+        #[ink(message)]
+        pub fn get_debug(&self) -> Option<AccountId> {
+            self.debug
         }
 
-        fn _get_price(&self, pair_id: &i32, round_id: &i64) -> i128 {
-            self.storage.get((pair_id, round_id)).unwrap_or(0)
-        }
-
-        fn _is_verifier(&self, caller: AccountId) -> bool {
-            caller == self.verifier_contract_address
+        #[ink(message)]
+        pub fn get_contract_address(&self) -> AccountId {
+            self.env().account_id()
         }
     }
 

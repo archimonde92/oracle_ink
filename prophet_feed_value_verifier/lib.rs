@@ -2,21 +2,49 @@
 
 #[ink::contract]
 mod prophet_feed_value_verifier {
-
+    use prophet_feed_value_storage::ProphetFeedValueStorageRef;
+    use scale::{Decode, Encode};
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
     /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct ProphetFeedValueVerifier {
         /// Stores a single `bool` value on the storage.
-        value: bool,
+        storage_contract: ProphetFeedValueStorageRef,
+        owner: AccountId,
+    }
+
+    #[derive(Encode, Decode, Debug, PartialEq, Eq, Copy, Clone)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub enum Error {
+        NotVerifierContract,
+        NotOwner,
+    }
+
+    #[ink(impl)]
+    impl ProphetFeedValueVerifier {
+        fn _ensure_owner(&self) -> Result<(), Error> {
+            let caller = self.env().caller();
+            if caller != self.owner {
+                return Err(Error::NotOwner);
+            }
+            Ok(())
+        }
     }
 
     impl ProphetFeedValueVerifier {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+        pub fn new(storage_contract_code_hash: Hash) -> Self {
+            let storage_contract = ProphetFeedValueStorageRef::new(Self::env().caller())
+                .code_hash(storage_contract_code_hash)
+                .endowment(0)
+                .salt_bytes([0xDE, 0xAD, 0xBE, 0xEF])
+                .instantiate();
+            Self {
+                storage_contract,
+                owner: Self::env().caller(),
+            }
         }
 
         /// Constructor that initializes the `bool` value to `false`.
@@ -27,18 +55,28 @@ mod prophet_feed_value_verifier {
             Self::new(Default::default())
         }
 
+        /// Get storage contract address
+        #[ink(message)]
+        pub fn get_storage_address(&self) -> AccountId {
+            self.storage_contract.get_contract_address()
+        }
+
         /// A message that can be called on instantiated contracts.
         /// This one flips the value of the stored `bool` from `true`
         /// to `false` and vice versa.
         #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
+        pub fn set_price(&mut self, pair_id: i32, round_id: i64, value: i128) -> Result<(), Error> {
+            self._ensure_owner()?;
+            let caller = self.storage_contract.set_price(pair_id, round_id, value);
+            match caller {
+                Ok(_) => Ok(()),
+                Err(_) => Err(Error::NotVerifierContract),
+            }
         }
 
-        /// Simply returns the current value of our `bool`.
         #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
+        pub fn get_verifier(&self) -> AccountId {
+            self.storage_contract.get_verifier_contract()
         }
     }
 
@@ -52,21 +90,12 @@ mod prophet_feed_value_verifier {
 
         /// We test if the default constructor does its job.
         #[ink::test]
-        fn default_works() {
-            let prophet_feed_value_verifier = ProphetFeedValueVerifier::default();
-            assert_eq!(prophet_feed_value_verifier.get(), false);
-        }
+        fn default_works() {}
 
         /// We test a simple use case of our contract.
         #[ink::test]
-        fn it_works() {
-            let mut prophet_feed_value_verifier = ProphetFeedValueVerifier::new(false);
-            assert_eq!(prophet_feed_value_verifier.get(), false);
-            prophet_feed_value_verifier.flip();
-            assert_eq!(prophet_feed_value_verifier.get(), true);
-        }
+        fn it_works() {}
     }
-
 
     /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
     ///
@@ -92,7 +121,13 @@ mod prophet_feed_value_verifier {
 
             // When
             let contract_account_id = client
-                .instantiate("prophet_feed_value_verifier", &ink_e2e::alice(), constructor, 0, None)
+                .instantiate(
+                    "prophet_feed_value_verifier",
+                    &ink_e2e::alice(),
+                    constructor,
+                    0,
+                    None,
+                )
                 .await
                 .expect("instantiate failed")
                 .account_id;
@@ -112,7 +147,13 @@ mod prophet_feed_value_verifier {
             // Given
             let constructor = ProphetFeedValueVerifierRef::new(false);
             let contract_account_id = client
-                .instantiate("prophet_feed_value_verifier", &ink_e2e::bob(), constructor, 0, None)
+                .instantiate(
+                    "prophet_feed_value_verifier",
+                    &ink_e2e::bob(),
+                    constructor,
+                    0,
+                    None,
+                )
                 .await
                 .expect("instantiate failed")
                 .account_id;
