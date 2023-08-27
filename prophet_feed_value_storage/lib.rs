@@ -1,20 +1,66 @@
 #![cfg_attr(not(feature = "std"), no_std, no_main)]
-pub use self::prophet_feed_value_storage::ProphetFeedValueStorageRef;
+pub use self::prophet_feed_value_storage::{
+    AnswerData, AnswerParam, ProphetFeedValueStorageRef, TDecimal, TPairId, TRoundId, TValue,
+};
+
 #[ink::contract]
 mod prophet_feed_value_storage {
+    use ink::prelude::vec::Vec;
     use ink::storage::Mapping;
     use scale::{Decode, Encode};
+
+    ///Type of pair id
+    pub type TPairId = u32;
+    ///Type of value of pair price
+    pub type TValue = u128;
+    ///Type of number decimal of value
+    pub type TDecimal = u16;
+    ///Type of round id
+    pub type TRoundId = u64;
+
+    pub type TAnswerReturn = (TValue, TDecimal, TRoundId, Timestamp);
+    #[derive(Decode, Encode, Debug, PartialEq, Eq, Copy, Clone)]
+    #[cfg_attr(
+        feature = "std",
+        derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout)
+    )]
+    pub struct AnswerData {
+        pub value: TValue,
+        pub decimal: TDecimal,
+        pub round_id: TRoundId,
+        pub timestamp: Timestamp,
+    }
+    #[derive(Decode, Encode)]
+    #[cfg_attr(
+        feature = "std",
+        derive(scale_info::TypeInfo, ink::storage::traits::StorageLayout)
+    )]
+    pub struct AnswerParam {
+        pair_id: TPairId,
+        round_id: TRoundId,
+        value: TValue,
+        decimal: TDecimal,
+        timestamp: Timestamp,
+    }
+
+    #[ink(event)]
+    pub struct NewAnswer {
+        pair_id: TPairId,
+        round_id: TRoundId,
+        value: TValue,
+        decimal: TDecimal,
+        timestamp: Timestamp,
+    }
 
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
     /// to add new static storage fields to your contract.
     #[ink(storage)]
     pub struct ProphetFeedValueStorage {
-        storage: Mapping<(i32, i64), i128>,
-        latest_rounds: Mapping<i32, i64>,
+        storage: Mapping<(TPairId, TRoundId), AnswerData>,
+        latest_answers: Mapping<TPairId, AnswerData>,
         verifier_contract_address: AccountId,
         owner: AccountId,
-        debug: Option<AccountId>,
     }
 
     #[derive(Encode, Decode, Debug, PartialEq, Eq, Copy, Clone)]
@@ -26,21 +72,40 @@ mod prophet_feed_value_storage {
     }
     #[ink(impl)]
     impl ProphetFeedValueStorage {
-        fn _is_pair_exists(&self, pair_id: &i32) -> bool {
-            self.latest_rounds.get(pair_id).is_some()
+        fn _convert_answer_to_answer_return(&self, answer: AnswerData) -> TAnswerReturn {
+            (
+                answer.value,
+                answer.decimal,
+                answer.round_id,
+                answer.timestamp,
+            )
+        }
+        fn _is_pair_exists(&self, pair_id: &TPairId) -> bool {
+            self.latest_answers.get(pair_id).is_some()
         }
 
-        fn _get_latest_round_id(&self, pair_id: &i32) -> i64 {
-            self.latest_rounds.get(pair_id).unwrap_or(0)
+        fn _get_latest_round_id_or_zero(&self, pair_id: &TPairId) -> TRoundId {
+            self.latest_answers
+                .get(pair_id)
+                .unwrap_or(AnswerData {
+                    value: 0,
+                    decimal: 0,
+                    round_id: 0,
+                    timestamp: 0,
+                })
+                .round_id
         }
 
-        fn _get_price(&self, pair_id: &i32, round_id: &i64) -> i128 {
-            self.storage.get((pair_id, round_id)).unwrap_or(0)
+        fn _get_latest_answer(&self, pair_id: &TPairId) -> Option<AnswerData> {
+            self.latest_answers.get(pair_id).into()
+        }
+
+        fn _get_answer(&self, pair_id: &TPairId, round_id: &TRoundId) -> Option<AnswerData> {
+            self.storage.get((pair_id, round_id)).into()
         }
 
         fn _ensure_verifier(&mut self) -> Result<(), Error> {
             let caller = self.env().caller();
-            self.debug = Some(caller);
             if caller != self.verifier_contract_address {
                 return Err(Error::NotVerifierContract);
             }
@@ -57,52 +122,133 @@ mod prophet_feed_value_storage {
     }
 
     impl ProphetFeedValueStorage {
+        ///Create new contract with `verifier_contract_address` has default is `caller`
         #[ink(constructor)]
         pub fn new(owner: AccountId) -> Self {
             Self {
                 storage: Default::default(),
-                latest_rounds: Default::default(),
+                latest_answers: Default::default(),
                 verifier_contract_address: Self::env().caller(),
                 owner,
-                debug: None,
             }
         }
 
-        ///Get verifier contract address
+        ///Get current verifier contract address
         #[ink(message)]
         pub fn get_verifier_contract(&self) -> AccountId {
             self.verifier_contract_address
         }
 
-        /// Simply returns the current value of our `bool`.
+        /// Get a answer per `pair_id` and `round_id`
         #[ink(message)]
-        pub fn get_price(&self, pair_id: i32, round_id: i64) -> Result<i128, Error> {
+        pub fn get_answer(
+            &self,
+            pair_id: TPairId,
+            round_id: TRoundId,
+        ) -> Result<Option<TAnswerReturn>, Error> {
             if !self._is_pair_exists(&pair_id) {
                 return Err(Error::PairNotExists);
             }
-            Ok(self._get_price(&pair_id, &round_id))
-        }
-
-        #[ink(message)]
-        pub fn get_lastest_price(&self, pair_id: i32) -> Result<i128, Error> {
-            let latest_round_id = self.latest_rounds.get(pair_id);
-            match latest_round_id {
-                None => Err(Error::PairNotExists),
-                Some(round_id) => Ok(self._get_price(&pair_id, &round_id)),
+            match self._get_answer(&pair_id, &round_id) {
+                None => Ok(None),
+                Some(answer) => Ok(Some(self._convert_answer_to_answer_return(answer))),
             }
         }
 
+        /// Get latest answer of `pair_id`
         #[ink(message)]
-        pub fn set_price(&mut self, pair_id: i32, round_id: i64, value: i128) -> Result<(), Error> {
+        pub fn get_latest_answer(&self, pair_id: TPairId) -> Result<Option<TAnswerReturn>, Error> {
+            if !self._is_pair_exists(&pair_id) {
+                return Err(Error::PairNotExists);
+            }
+            match self._get_latest_answer(&pair_id) {
+                None => Ok(None),
+                Some(answer) => Ok(Some(self._convert_answer_to_answer_return(answer))),
+            }
+        }
+
+        ///Get latest price of a `pair_id`
+        #[ink(message)]
+        pub fn get_latest_price(&self, pair_id: TPairId) -> Result<TValue, Error> {
+            let latest_round_id = self.latest_answers.get(pair_id);
+            match latest_round_id {
+                None => Err(Error::PairNotExists),
+                Some(answer) => Ok(answer.value),
+            }
+        }
+
+        /// Update answers
+        /// Only call from verifier
+        /// Emit event `NewAnswer` if it is a new answer
+        #[ink(message)]
+        pub fn set_answer(
+            &mut self,
+            pair_id: TPairId,
+            round_id: TRoundId,
+            value: TValue,
+            decimal: TDecimal,
+            timestamp: Timestamp,
+        ) -> Result<(), Error> {
             self._ensure_verifier()?;
-            self.storage.insert((pair_id, round_id), &value);
-            let latest_round_id = self._get_latest_round_id(&pair_id);
+
+            let new_answer = AnswerData {
+                decimal,
+                value,
+                round_id,
+                timestamp,
+            };
+            self.storage.insert((pair_id, round_id), &new_answer);
+            let latest_round_id = self._get_latest_round_id_or_zero(&pair_id);
             if latest_round_id < round_id {
-                self.latest_rounds.insert(pair_id, &round_id);
+                self.latest_answers.insert(pair_id, &new_answer);
+                self.env().emit_event(NewAnswer {
+                    pair_id,
+                    decimal,
+                    round_id,
+                    timestamp,
+                    value,
+                })
             }
             Ok(())
         }
 
+        /// Update answers
+        /// Only call from verifier
+        /// Emit event `NewAnswer` if it is a new answer
+        #[ink(message)]
+        pub fn set_answers(&mut self, answers: Vec<AnswerParam>) -> Result<(), Error> {
+            self._ensure_verifier()?;
+            for answer in answers.iter() {
+                let pair_id = answer.pair_id;
+                let round_id = answer.round_id;
+                let decimal = answer.decimal;
+                let value = answer.value;
+                let timestamp = answer.timestamp;
+
+                let new_answer = AnswerData {
+                    decimal,
+                    value,
+                    round_id,
+                    timestamp,
+                };
+                self.storage.insert((pair_id, round_id), &new_answer);
+                let latest_round_id = self._get_latest_round_id_or_zero(&pair_id);
+                if latest_round_id < round_id {
+                    self.latest_answers.insert(pair_id, &new_answer);
+                    self.env().emit_event(NewAnswer {
+                        pair_id,
+                        decimal,
+                        round_id,
+                        timestamp,
+                        value,
+                    })
+                }
+            }
+            Ok(())
+        }
+
+        /// Set verifier contract
+        /// ONLY called by owner
         #[ink(message)]
         pub fn set_verifier_contract(
             &mut self,
@@ -113,16 +259,13 @@ mod prophet_feed_value_storage {
             Ok(())
         }
 
+        /// Get owner address
         #[ink(message)]
         pub fn get_owner(&self) -> AccountId {
             self.owner
         }
 
-        #[ink(message)]
-        pub fn get_debug(&self) -> Option<AccountId> {
-            self.debug
-        }
-
+        /// Get this contract address
         #[ink(message)]
         pub fn get_contract_address(&self) -> AccountId {
             self.env().account_id()

@@ -2,7 +2,10 @@
 
 #[ink::contract]
 mod prophet_feed_value_verifier {
-    use prophet_feed_value_storage::ProphetFeedValueStorageRef;
+    use ink::{prelude::vec::Vec, storage::Mapping};
+    use prophet_feed_value_storage::{
+        AnswerData, AnswerParam, ProphetFeedValueStorageRef, TDecimal, TPairId, TRoundId, TValue,
+    };
     use scale::{Decode, Encode};
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
@@ -11,6 +14,8 @@ mod prophet_feed_value_verifier {
     pub struct ProphetFeedValueVerifier {
         /// Stores a single `bool` value on the storage.
         storage_contract: ProphetFeedValueStorageRef,
+        nodes: Mapping<AccountId, bool>,
+        processed_txn: Mapping<Hash, bool>,
         owner: AccountId,
     }
 
@@ -18,6 +23,9 @@ mod prophet_feed_value_verifier {
     #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
     pub enum Error {
         NotVerifierContract,
+        EmptyAnswersFound,
+        EmptySignaturesFound,
+        NotMatchedAnswerLengthAndSignatureLength,
         NotOwner,
     }
 
@@ -29,6 +37,65 @@ mod prophet_feed_value_verifier {
                 return Err(Error::NotOwner);
             }
             Ok(())
+        }
+
+        fn _update_new_answer(
+            &mut self,
+            pair_id: TPairId,
+            round_id: TRoundId,
+            value: TValue,
+            decimal: TDecimal,
+            timestamp: Timestamp,
+        ) -> Result<(), Error> {
+            let result = self
+                .storage_contract
+                .set_answer(pair_id, round_id, value, decimal, timestamp);
+            match result {
+                Ok(_) => Ok(()),
+                Err(_) => Err(Error::NotVerifierContract),
+            }
+        }
+
+        fn _update_new_answers(&mut self, answers: Vec<AnswerParam>) -> Result<(), Error> {
+            let result = self.storage_contract.set_answers(answers);
+            match result {
+                Ok(_) => Ok(()),
+                Err(_) => Err(Error::NotVerifierContract),
+            }
+        }
+
+        fn _is_valid_answers(&self, answers: &Vec<AnswerData>) -> Result<(), Error> {
+            //TODO valid answers
+            Ok(())
+        }
+        fn _is_valid_answers_and_signatures(
+            &self,
+            signatures: &Vec<Hash>,
+            answers: &Vec<AnswerData>,
+        ) -> Result<(), Error> {
+            if answers.len() == 0 {
+                return Err(Error::EmptyAnswersFound);
+            }
+            if signatures.len() == 0 {
+                return Err(Error::EmptySignaturesFound);
+            }
+            if signatures.len() != answers.len() {
+                return Err(Error::NotMatchedAnswerLengthAndSignatureLength);
+            }
+            self._is_valid_answers(answers)?;
+            //TODO valid signatures
+            Ok(())
+        }
+
+        fn _aggregate_answer(&self, answers: Vec<AnswerData>) -> AnswerData {
+            //TODO improve aggregate answer
+            let mut answer = answers[0].clone();
+            let mut total_value: u128 = 0;
+            for answer_data in answers.iter() {
+                total_value = total_value + answer_data.value
+            }
+            answer.value = total_value.div_euclid(answers.len().try_into().unwrap_or(1));
+            answer
         }
     }
 
@@ -44,6 +111,8 @@ mod prophet_feed_value_verifier {
             Self {
                 storage_contract,
                 owner: Self::env().caller(),
+                nodes: Default::default(),
+                processed_txn: Default::default(),
             }
         }
 
@@ -65,13 +134,47 @@ mod prophet_feed_value_verifier {
         /// This one flips the value of the stored `bool` from `true`
         /// to `false` and vice versa.
         #[ink(message)]
-        pub fn set_price(&mut self, pair_id: i32, round_id: i64, value: i128) -> Result<(), Error> {
+        pub fn restricted_update_new_answer(
+            &mut self,
+            pair_id: TPairId,
+            round_id: TRoundId,
+            value: TValue,
+            decimal: TDecimal,
+            timestamp: Timestamp,
+        ) -> Result<(), Error> {
             self._ensure_owner()?;
-            let caller = self.storage_contract.set_price(pair_id, round_id, value);
-            match caller {
-                Ok(_) => Ok(()),
-                Err(_) => Err(Error::NotVerifierContract),
-            }
+            self._update_new_answer(pair_id, round_id, value, decimal, timestamp)
+        }
+
+        #[ink(message)]
+        pub fn restricted_update_new_answers(
+            &mut self,
+            answers: Vec<AnswerParam>,
+        ) -> Result<(), Error> {
+            self._ensure_owner()?;
+            self._update_new_answers(answers)
+        }
+
+        #[ink(message)]
+        pub fn transmit_process(
+            &mut self,
+            pair_id: TPairId,
+            answers: Vec<AnswerData>,
+            signatures: Vec<Hash>,
+        ) -> Result<(), Error> {
+            //Check valid answers and signatures
+            self._is_valid_answers_and_signatures(&signatures, &answers)?;
+            //Aggregate result
+            let aggregated_answer = self._aggregate_answer(answers.clone());
+            //Update new answer of pair_id
+            self._update_new_answer(
+                pair_id,
+                aggregated_answer.round_id,
+                aggregated_answer.value,
+                aggregated_answer.decimal,
+                aggregated_answer.timestamp,
+            )?;
+            Ok(())
         }
 
         #[ink(message)]
