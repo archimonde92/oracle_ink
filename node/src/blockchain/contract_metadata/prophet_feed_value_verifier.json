@@ -1,11 +1,11 @@
-const metadata = {
+{
   "source": {
-    "hash": "0x2ee600430140b21b01c73d46a89567d97bae7ec568a116968c577e485178d45c",
+    "hash": "0x59556a4a41e67b02f59802bbb5c9b6f80ad1eebd36d7bd74d8eb81894cd5a702",
     "language": "ink! 4.3.0",
-    "compiler": "rustc 1.71.1",
+    "compiler": "rustc 1.72.0",
     "build_info": {
       "build_mode": "Release",
-      "cargo_contract_version": "3.0.1",
+      "cargo_contract_version": "3.2.0",
       "rust_toolchain": "stable-aarch64-apple-darwin",
       "wasm_opt_settings": {
         "keep_debug_symbols": false,
@@ -821,8 +821,4 @@ const metadata = {
     }
   ],
   "version": "4"
-}
-
-export {
-  metadata as prophet_feed_value_verifier_metadata
 }
