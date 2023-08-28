@@ -34,5 +34,6 @@ class CProphetVerifier implements TProphetVerifier {
 }
 
 export {
-    CProphetVerifier
+    CProphetVerifier,
+    TAnswerData
 }
