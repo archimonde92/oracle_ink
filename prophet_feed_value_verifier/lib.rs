@@ -2,6 +2,7 @@
 
 #[ink::contract]
 mod prophet_feed_value_verifier {
+    use ink::env::{hash, hash_bytes};
     use ink::{prelude::vec::Vec, storage::Mapping};
     use prophet_feed_value_storage::{
         AnswerData, AnswerParam, ProphetFeedValueStorageRef, TDecimal, TPairId, TRoundId, TValue,
@@ -83,6 +84,7 @@ mod prophet_feed_value_verifier {
                 return Err(Error::NotMatchedAnswerLengthAndSignatureLength);
             }
             self._is_valid_answers(answers)?;
+
             //TODO valid signatures
             Ok(())
         }
@@ -96,6 +98,20 @@ mod prophet_feed_value_verifier {
             }
             answer.value = total_value.div_euclid(answers.len().try_into().unwrap_or(1));
             answer
+        }
+
+        fn _hash_keccak_256(&self, input: &[u8]) -> [u8; 32] {
+            let mut output = <hash::Keccak256 as hash::HashOutput>::Type::default();
+            hash_bytes::<hash::Keccak256>(input, &mut output);
+            output
+        }
+
+        pub fn _packing_data_to_message_hash(&self, data: AnswerData) -> [u8; 32] {
+            let sum: u128 = u128::from(data.timestamp)
+                + u128::from(data.decimal) * 10_u128.pow(11)
+                + u128::from(data.round_id) * 10_u128.pow(13)
+                + data.value * 10_u128.pow(23);
+            self._hash_keccak_256(&sum.to_be_bytes())
         }
     }
 
@@ -180,6 +196,18 @@ mod prophet_feed_value_verifier {
         #[ink(message)]
         pub fn get_verifier(&self) -> AccountId {
             self.storage_contract.get_verifier_contract()
+        }
+
+        #[ink(message)]
+        pub fn recovery_test(
+            &self,
+            signature: [u8; 65],
+            message: [u8; 32],
+        ) -> Result<[u8; 33], Error> {
+            match self.env().ecdsa_recover(&signature, &message) {
+                Ok(address) => Ok(address),
+                Err(_) => Err(Error::NotMatchedAnswerLengthAndSignatureLength),
+            }
         }
     }
 

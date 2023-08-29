@@ -17,7 +17,6 @@ mod prophet_feed_value_storage {
     pub type TDecimal = u16;
     ///Type of round id
     pub type TRoundId = u64;
-
     pub type TAnswerReturn = (TValue, TDecimal, TRoundId, Timestamp);
     #[derive(Decode, Encode, Debug, PartialEq, Eq, Copy, Clone)]
     #[cfg_attr(
