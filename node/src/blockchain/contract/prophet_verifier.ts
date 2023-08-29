@@ -9,6 +9,9 @@ type TAnswerData = {
     timestamp: number
 }
 
+const packedAnswer = (answer: TAnswerData) => {
+    answer.value << 3
+}
 
 interface TProphetVerifier {
     transmitProcess: (caller: KeyringPair, pair_id: number, answers: TAnswerData[], signatures: string[]) => Promise<string>
