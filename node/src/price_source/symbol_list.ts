@@ -2,12 +2,12 @@ const SYMBOL_LIST = [
     {
         binance: "BTCUSDT",
         coingecko: "bitcoin",
-        decimal: 8
+        decimal: 6
     },
     {
         binance: "ETHUSDT",
         coingecko: "ethereum",
-        decimal: 8
+        decimal: 6
     }
 
 ]

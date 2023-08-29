@@ -8,7 +8,7 @@ import { AnyJson, ISubmittableResult } from '@polkadot/types/types';
 
 const DEFAULT_MAINNET_PROVIDER = "wss://rpc.polkadot.io"
 const DEFAULT_LOCAL_PROVIDER = "ws://127.0.0.1:9944"
-const MAX_CALL_WEIGHT = new BN(5_000_000_000).isub(BN_ONE);
+const MAX_CALL_WEIGHT = new BN(5_000_000_000_00).isub(BN_ONE);
 const PROOF_SIZE = new BN(1_000_000);
 const storageDepositLimit = null
 let polkadot_api: ApiPromise
@@ -65,7 +65,7 @@ const connectContract: (metadata: any, address: string | AccountId) => TContract
 
 const readContract = async (contract: ContractPromise, method: string, address: string, params: any[]) => {
     try {
-
+       
         const gasLimit = polkadot_api?.registry.createType('WeightV2', {
             refTime: MAX_CALL_WEIGHT,
             proofSize: PROOF_SIZE,
@@ -90,6 +90,7 @@ const readContract = async (contract: ContractPromise, method: string, address: 
 
 const callContract = async (contract: ContractPromise, method: string, key_pair: KeyringPair, params: any[]) => {
     try {
+        console.log(...params)
         const gasLimit = polkadot_api?.registry.createType('WeightV2', {
             refTime: MAX_CALL_WEIGHT,
             proofSize: PROOF_SIZE,
@@ -106,12 +107,13 @@ const callContract = async (contract: ContractPromise, method: string, key_pair:
                 cb => {
                     if (cb.status.isInBlock) {
                         res(cb)
-                    } else if (cb.status.isFinalized) {
+                    } else if (cb.status.isInvalid) {
+                        res(cb)
                     }
                 }
             );
         })
-        return result.txHash.toHuman()
+        return result.status.asInBlock.toHuman()
     } catch (e: any) {
         throw new Error(`Error when call method ${method} ${e["message"] || e["stack"] || JSON.stringify(e)}`)
     }

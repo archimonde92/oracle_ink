@@ -1,3 +1,4 @@
+import BigNumber from "bignumber.js"
 import { storage_contract } from "../blockchain/contract"
 import { TAnswerData } from "../blockchain/contract/prophet_verifier"
 import { LIST_SUBSTRATE_LOCAL_ADDRESS } from "../blockchain/polkadot"
@@ -20,9 +21,23 @@ const AggregatorCurrentAnswer: (pair_id: number) => Promise<TAnswerData> = async
         value: Math.floor(avg(price_list) * (10 ** SYMBOL_LIST[pair_id].decimal)),
         decimal: SYMBOL_LIST[pair_id].decimal,
         roundId: (latest_answer?.roundId || 0) + 1,
-        timestamp: +new Date()
+        timestamp: Math.floor(+new Date() / 1000)
     }
     return answer
 }
 
-export { AggregatorCurrentAnswer }
+const PackingAnswer = (data: TAnswerData) => {
+    const hex = new BigNumber(data.timestamp)
+        .plus(new BigNumber(data.decimal).multipliedBy(new BigNumber(10).pow(11)))
+        .plus(new BigNumber(data.roundId).multipliedBy(new BigNumber(10).pow(13)))
+        .plus(new BigNumber(data.value).multipliedBy(new BigNumber(10).pow(23)))
+        .toString(16)
+
+    const message = "0x" + hex.padStart(32, "0")
+    return message
+}
+
+export {
+    AggregatorCurrentAnswer,
+    PackingAnswer
+}
