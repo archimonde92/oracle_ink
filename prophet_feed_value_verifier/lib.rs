@@ -8,14 +8,14 @@ mod prophet_feed_value_verifier {
         AnswerData, AnswerParam, ProphetFeedValueStorageRef, TDecimal, TPairId, TRoundId, TValue,
     };
     use scale::{Decode, Encode};
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
+
+    type TNodePublicKey = [u8; 33];
+    type TSignature = [u8; 65];
+  
     #[ink(storage)]
     pub struct ProphetFeedValueVerifier {
-        /// Stores a single `bool` value on the storage.
         storage_contract: ProphetFeedValueStorageRef,
-        nodes: Mapping<AccountId, bool>,
+        nodes: Mapping<TNodePublicKey, bool>,
         processed_txn: Mapping<Hash, bool>,
         owner: AccountId,
     }
@@ -26,8 +26,13 @@ mod prophet_feed_value_verifier {
         NotVerifierContract,
         EmptyAnswersFound,
         EmptySignaturesFound,
-        NotMatchedAnswerLengthAndSignatureLength,
+        EmptyPublicKeysFound,
+        NotMatchedInputLength,
         NotOwner,
+        RecoverFailed,
+        NodeAlreadyAdded,
+        NodeIsNotExists,
+        SignatureInvalid,
     }
 
     #[ink(impl)]
@@ -71,9 +76,13 @@ mod prophet_feed_value_verifier {
         }
         fn _is_valid_answers_and_signatures(
             &self,
-            signatures: &Vec<Hash>,
+            signatures: &Vec<TSignature>,
             answers: &Vec<AnswerData>,
+            public_keys: &Vec<TNodePublicKey>,
         ) -> Result<(), Error> {
+            if public_keys.len() == 0 {
+                return Err(Error::EmptyAnswersFound);
+            }
             if answers.len() == 0 {
                 return Err(Error::EmptyAnswersFound);
             }
@@ -81,11 +90,24 @@ mod prophet_feed_value_verifier {
                 return Err(Error::EmptySignaturesFound);
             }
             if signatures.len() != answers.len() {
-                return Err(Error::NotMatchedAnswerLengthAndSignatureLength);
+                return Err(Error::NotMatchedInputLength);
+            }
+            if public_keys.len() != answers.len() {
+                return Err(Error::NotMatchedInputLength);
             }
             self._is_valid_answers(answers)?;
-
-            //TODO valid signatures
+            //check valid signatures
+            for index in 0..answers.len() {
+                let public_key = public_keys[index];
+                self._check_valid_node(&public_key)?;
+                let cmp_public_key = self._recovery_public_key(
+                    &signatures[index],
+                    &self._packing_data_to_message_hash(answers[index]),
+                )?;
+                if public_key != cmp_public_key {
+                    return Err(Error::SignatureInvalid);
+                }
+            }
             Ok(())
         }
 
@@ -112,6 +134,24 @@ mod prophet_feed_value_verifier {
                 + u128::from(data.round_id) * 10_u128.pow(13)
                 + data.value * 10_u128.pow(23);
             self._hash_keccak_256(&sum.to_be_bytes())
+        }
+
+        fn _recovery_public_key(
+            &self,
+            signature: &[u8; 65],
+            message_hash: &[u8; 32],
+        ) -> Result<TNodePublicKey, Error> {
+            match self.env().ecdsa_recover(signature, message_hash) {
+                Ok(address) => Ok(address),
+                Err(_) => Err(Error::RecoverFailed),
+            }
+        }
+
+        fn _check_valid_node(&self, public_key: &TNodePublicKey) -> Result<(), Error> {
+            if !self.nodes.contains(public_key) {
+                return Err(Error::NodeIsNotExists);
+            }
+            Ok(())
         }
     }
 
@@ -146,6 +186,28 @@ mod prophet_feed_value_verifier {
             self.storage_contract.get_contract_address()
         }
 
+        #[ink(message)]
+        pub fn add_node(&mut self, new_node: TNodePublicKey) -> Result<(), Error> {
+            self._ensure_owner()?;
+            let is_node_exists = self.nodes.contains(new_node);
+            if is_node_exists {
+                return Err(Error::NodeAlreadyAdded);
+            }
+            self.nodes.insert(new_node, &true);
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn remove_node(&mut self, node_public_key: TNodePublicKey) -> Result<(), Error> {
+            self._ensure_owner()?;
+            let is_node_exists = self.nodes.contains(node_public_key);
+            if !is_node_exists {
+                return Err(Error::NodeIsNotExists);
+            }
+            self.nodes.remove(node_public_key);
+            Ok(())
+        }
+
         /// A message that can be called on instantiated contracts.
         /// This one flips the value of the stored `bool` from `true`
         /// to `false` and vice versa.
@@ -175,11 +237,12 @@ mod prophet_feed_value_verifier {
         pub fn transmit_process(
             &mut self,
             pair_id: TPairId,
+            public_keys: Vec<TNodePublicKey>,
             answers: Vec<AnswerData>,
-            signatures: Vec<Hash>,
+            signatures: Vec<TSignature>,
         ) -> Result<(), Error> {
             //Check valid answers and signatures
-            self._is_valid_answers_and_signatures(&signatures, &answers)?;
+            self._is_valid_answers_and_signatures(&signatures, &answers, &public_keys)?;
             //Aggregate result
             let aggregated_answer = self._aggregate_answer(answers.clone());
             //Update new answer of pair_id
@@ -196,18 +259,6 @@ mod prophet_feed_value_verifier {
         #[ink(message)]
         pub fn get_verifier(&self) -> AccountId {
             self.storage_contract.get_verifier_contract()
-        }
-
-        #[ink(message)]
-        pub fn recovery_test(
-            &self,
-            signature: [u8; 65],
-            message: [u8; 32],
-        ) -> Result<[u8; 33], Error> {
-            match self.env().ecdsa_recover(&signature, &message) {
-                Ok(address) => Ok(address),
-                Err(_) => Err(Error::NotMatchedAnswerLengthAndSignatureLength),
-            }
         }
     }
 
