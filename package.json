@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build":"bash build.sh",
-    "run-node":"cd node&&npm run dev"
+    "build": "bash build.sh",
+    "run-node": "cd node&&npm run dev"
   },
   "author": "",
   "license": "ISC"

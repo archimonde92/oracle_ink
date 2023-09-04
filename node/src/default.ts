@@ -1,0 +1,7 @@
+const DEFAULT_MAINNET_PROVIDER = "wss://rpc.polkadot.io"
+const DEFAULT_LOCAL_PROVIDER = "ws://127.0.0.1:9944"
+
+export {
+    DEFAULT_LOCAL_PROVIDER,
+    DEFAULT_MAINNET_PROVIDER
+}

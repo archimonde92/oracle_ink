@@ -5,9 +5,9 @@ import { BN, BN_ONE } from "@polkadot/util";
 import { KeyringPair } from '@polkadot/keyring/types';
 import { waitReady } from "@polkadot/wasm-crypto"
 import { AnyJson, ISubmittableResult } from '@polkadot/types/types';
+import { DEFAULT_LOCAL_PROVIDER } from '../../default';
 
-const DEFAULT_MAINNET_PROVIDER = "wss://rpc.polkadot.io"
-const DEFAULT_LOCAL_PROVIDER = "ws://127.0.0.1:9944"
+
 const MAX_CALL_WEIGHT = new BN(5_000_000_000_00).isub(BN_ONE);
 const PROOF_SIZE = new BN(1_000_000);
 const storageDepositLimit = null
@@ -65,7 +65,7 @@ const connectContract: (metadata: any, address: string | AccountId) => TContract
 
 const readContract = async (contract: ContractPromise, method: string, address: string, params: any[]) => {
     try {
-       
+
         const gasLimit = polkadot_api?.registry.createType('WeightV2', {
             refTime: MAX_CALL_WEIGHT,
             proofSize: PROOF_SIZE,

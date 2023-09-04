@@ -1,0 +1,12 @@
+[blockchain]
+provider = "ws://127.0.0.1:9944"
+storage_address="5GTSKK4QGuJy7GUEBFMRvUXcLwtmQHaV3K1e6TEkt7fVDkd5"
+verifier_address="5G6r18LERBEr8ycXBGXsxyqz64JXiP4JfdJZPN1EHhtdcaxE"
+
+[node]
+port = 5000
+
+[middle_node]
+url="http://127.0.0.1:5005"
+
+

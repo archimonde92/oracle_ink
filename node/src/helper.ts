@@ -1,5 +1,7 @@
-const randomNumber = (from: number, to: number, step: number) => from + Math.round((to - from) / step * Math.random()) * step
+import fs, { PathOrFileDescriptor } from "fs"
+import toml from "toml"
 
+const randomNumber = (from: number, to: number, step: number) => from + Math.round((to - from) / step * Math.random()) * step
 
 const randomItem = <T>(array: T[]) => {
     const index = randomNumber(0, array.length - 1, 1)
@@ -24,10 +26,63 @@ const sleep = async (ms: number): Promise<void> => {
     });
 };
 
+const TOMLParse = (path: PathOrFileDescriptor) => {
+    return toml.parse(fs.readFileSync(path, 'utf-8'))
+}
+
+function lowerCase(s: string) {
+    return s?.toLowerCase();
+}
+
+const getEnvString = (key: string) => {
+    if (!process.env[key]) throw new Error(`${key} must be provided`);
+    return process.env[key] as string;
+};
+
+const getBooleanFromEnv = (key: string) => {
+    const envString = getEnvString(key);
+    if (!["true", "false"].includes(envString.toLowerCase()))
+        throw new Error(`${key} must be true|false|TRUE|FALSE`);
+    return JSON.parse(process.env[key] as string) as boolean;
+};
+
+const getIntFromEnv = (
+    key: string,
+    options?: { greater_than?: number; less_than?: number },
+) => {
+    const envString = getEnvString(key);
+    const envNumber = parseInt(envString);
+    if (options) {
+        if (options.greater_than) {
+            if (envNumber <= options.greater_than)
+                throw new Error(
+                    `${key} must be int number and greater than ${options.greater_than}`,
+                );
+        }
+        if (options.less_than) {
+            if (envNumber >= options.less_than)
+                throw new Error(
+                    `${key} must be int number and less than ${options.greater_than}`,
+                );
+        }
+    }
+    return parseInt(envString);
+};
+
+const logWithPrefix = (prefix: string, msg: string) => console.log(prefix + " " + msg)
+const getFileName = (path: string) => `[${path.split("/").pop()}]`
+
 export {
     randomNumber,
     randomItem,
     avg,
     toNumber,
-    sleep
+    sleep,
+    TOMLParse,
+    lowerCase,
+    getEnvString,
+    getBooleanFromEnv,
+    getIntFromEnv,
+    logWithPrefix,
+    getFileName
 }
