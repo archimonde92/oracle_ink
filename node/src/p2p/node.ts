@@ -1,6 +1,9 @@
 import { createNode } from ".";
+import { TAnswerMessage } from "..";
+import { TAnswerData } from "../blockchain/contract/prophet_verifier";
 import { middle_server } from "../infra";
 let node: ReturnType<typeof createNode>
+let node_answers: { public_key: string, answer: TAnswerData, signature: string }[][] = [[]]
 
 
 // After that we create the node, run it and let user
@@ -27,7 +30,15 @@ const connectNode = (port: number, is_leader: boolean) => {
         });
 
         node.on('broadcast', ({ message }) => {
-            console.log(message)
+            if (message.type === "new_answer") {
+                const answer_msg = message as TAnswerMessage
+                const { pair_id, public_key, signature, answer } = answer_msg
+                node_answers[pair_id][answer.roundId] = {
+                    public_key,
+                    signature,
+                    answer
+                }
+            }
         });
     });
 
@@ -41,4 +52,4 @@ const connectNode = (port: number, is_leader: boolean) => {
     });
 }
 
-export { connectNode, node }
+export { connectNode, node, node_answers }

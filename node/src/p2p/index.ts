@@ -8,7 +8,7 @@ type TNodeOption = {
 }
 type TNodeIp = string
 type TNodePort = number
-type ETransferDataType = "handshake" | "message"
+type ETransferDataType = "handshake" | "message" | "ping"
 type TTransferData = {
     type: ETransferDataType
     data: any
@@ -67,6 +67,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
             connections.delete(connectionId);
             emitter.emit('_disconnect', connectionId);
         });
+
     };
 
     // Create a server itself and make it able to handle
@@ -201,7 +202,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
     // On message we check whether it's a handshake and add
     // the node to the neighbors list
     emitter.on('_message', ({ connectionId, message }) => {
-        const { type, data } = message;
+        const { type, data } = message as TTransferData;
 
         if (type === 'handshake') {
             const { nodeId } = data;
@@ -219,6 +220,10 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
             } else {
                 console.log(`${nodeId} not found!`)
             }
+        }
+
+        if (type === "ping") {
+
         }
     });
 
@@ -258,7 +263,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
     };
     // 2 methods to send data either to all nodes in the network
     // or to a specific node (direct message)
-    const broadcast = (message: any, id = randomUuid(), origin = NODE_ID, ttl = 255) => {
+    const broadcast = <TMessage>(message: TMessage, id = randomUuid(), origin = NODE_ID, ttl = 255) => {
         sendPacket({ id, ttl, type: 'broadcast', message, origin });
     };
 
