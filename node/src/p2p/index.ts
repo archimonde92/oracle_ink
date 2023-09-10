@@ -13,7 +13,7 @@ type TTransferData = {
     type: ETransferDataType
     data: any
 }
-type EDataPacketType = "broadcast" | "direct" | "node_sync" | "node_down" | "leader_change" | "leader_sync"
+type EDataPacketType = "broadcast" | "direct" | "node_sync" | "node_down" | "leader_change" | "leader_sync" | "leader_down" | "ping" | "pong"
 type TDataPacket = {
     id: TUuid,
     ttl: number,
@@ -26,13 +26,20 @@ type TDataPacket = {
 const handleRawData = (data: string) => {
     let split_data = data.split("}{")
 
-    split_data = split_data.length > 1 ? split_data.map((el, index) => index === 0 ? el + "}" : "{" + el) : split_data
+    split_data = split_data.length > 1
+        ? split_data.map((el, index) => index === 0
+            ? el + "}"
+            : index !== split_data.length - 1
+                ? "{" + el + "}"
+                : "{" + el)
+        : split_data
     let final_data = split_data.map(el => {
         try {
             const parse_data = JSON.parse(el)
             return parse_data
         } catch (e) {
             console.log(`Fail to parse ${el}`)
+            console.log({ data_raw: data })
             return null
         }
     })
@@ -64,6 +71,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         })
 
         socket.on('close', () => {
+            notiLeaderDown()
             connections.delete(connectionId);
             emitter.emit('_disconnect', connectionId);
         });
@@ -148,6 +156,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
     const NODE_ID = randomUuid();
     console.log({ NODE_ID })
     const neighbors = new Map();
+    const neighbor_active_tracking = new Map()
     const all_nodes = new Map<TUuid, null>()
     let leader: TUuid | null = null
     let is_ready = false
@@ -159,6 +168,9 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
                 all_nodes.set(node_id, null)
             }
         }
+        if (leader === NODE_ID && all_nodes.size >= 3) {
+            setTimeout(() => { emitter.emit("_message", "test") }, 3000)
+        }
     }
 
     const removeNodes = (node_ids: TUuid[]) => {
@@ -169,16 +181,21 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         }
     }
 
+    const _randomSelectNewLeader = () => {
+        const node_id_array = Array.from(all_nodes.keys()).filter(el => el !== leader)
+        const random_index = Math.floor(Math.random() * node_id_array.length)
+        const new_leader = node_id_array[random_index]
+        return new_leader
+    }
+
     const changeLeader = () => {
         if (leader === NODE_ID) {
-            const node_id_array = Array.from(all_nodes.keys())
-            const random_index = Math.floor(Math.random() * node_id_array.length)
-            const new_leader = node_id_array[random_index]
-            leaderChange(new_leader)
+            leaderChange(_randomSelectNewLeader())
         }
     }
 
     const setLeader = (new_lead_node_id: TUuid) => {
+        console.log(`New leader = ${new_lead_node_id}`)
         leader = new_lead_node_id
     }
 
@@ -230,6 +247,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
     emitter.on('_disconnect', (connectionId: TUuid) => {
         const nodeId = findNodeId(connectionId);
         neighbors.delete(nodeId);
+        neighbor_active_tracking.delete(nodeId);
         removeNodes([nodeId])
         nodeDown(nodeId)
         emitter.emit('disconnect', { nodeId });
@@ -261,6 +279,16 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
             }
         }
     };
+    const sendPrivatePacket = (packet: TDataPacket) => {
+        if (!alreadySeenMessages.has(packet.id) || packet.ttl < 1) {
+            alreadySeenMessages.add(packet.id);
+        }
+        for (const $nodeId of neighbors.keys()) {
+            if (packet.destination && packet.destination == $nodeId && packet.origin != $nodeId) {
+                send($nodeId, packet);
+            }
+        }
+    };
     // 2 methods to send data either to all nodes in the network
     // or to a specific node (direct message)
     const broadcast = <TMessage>(message: TMessage, id = randomUuid(), origin = NODE_ID, ttl = 255) => {
@@ -280,6 +308,35 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         }
     };
 
+    const LeaderDie = () => {
+        const nodes = Array.from(all_nodes.keys()).filter(node => node !== leader)
+        nodes.sort()
+        if (neighbors.has(leader)) neighbors.delete(leader)
+        if (nodes[0] === NODE_ID && leader != NODE_ID) {
+            setLeader(NODE_ID)
+            syncLeader()
+        }
+    }
+
+    const ping = (id = randomUuid(), origin = NODE_ID, ttl = 255) => {
+        const send_time = +new Date()
+        for (let node_id of neighbors.keys()) {
+            if (!neighbor_active_tracking.has(node_id)) {
+                neighbor_active_tracking.set(node_id, send_time)
+            }
+        }
+        sendPacket({ id, ttl, type: 'ping', message: { from: NODE_ID, create_at: send_time }, origin });
+    }
+
+    const pong = (message: { from: string, create_at: number }, id = randomUuid(), origin = NODE_ID, ttl = 255) => {
+        sendPrivatePacket({ id, ttl, type: 'pong', message: { from: NODE_ID, create_at: message.create_at, response_at: +new Date() }, origin, destination: message.from });
+    }
+
+    const notiLeaderDown = (origin = NODE_ID, ttl = 255) => {
+        console.log(`LeaderDown`)
+        sendPacket({ id: leader + "down", ttl, type: 'leader_down', message: leader, origin });
+    }
+
 
     const nodeDown = (node_id: TUuid, id = randomUuid(), origin = NODE_ID, ttl = 255) => {
         sendPacket({ id, ttl, type: 'node_down', message: node_id, origin });
@@ -296,6 +353,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
     // Listen to all packets arriving from other nodes and
     // decide whether to send them next and emit message
     emitter.on('message', ({ nodeId, data }) => {
+        if (!data) return
         let packet: TDataPacket = data
         // First of all we decide, whether this message at
         // any point has been send by us. We do it in one
@@ -331,6 +389,23 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
                 setLeader(packet.message)
             }
         }
+        if (packet.type === 'leader_down') {
+            console.log(`${packet.message} leader_down!`)
+            LeaderDie()
+            notiLeaderDown()
+        }
+        if (packet.type === 'ping') {
+            pong(packet.message)
+        }
+        if (packet.type === 'pong') {
+            const message = packet.message as {
+                from: string,
+                create_at: number,
+                response_at: number
+            }
+            console.log(`ping to ${packet.origin} response time=${message.response_at - message.create_at} ms`)
+            neighbor_active_tracking.set(packet.origin, message.response_at)
+        }
 
         // If the peer message is received, figure out if it's
         // for us and send it forward if not
@@ -350,17 +425,33 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         setLeader(NODE_ID)
         is_ready = true
     }
+    const TIME_OUT_LIMIT = 10000
+    const scanPing = () => {
+        const scan_time = +new Date()
+        for (let [node_id, last_active_at] of neighbor_active_tracking.entries()) {
+            if (scan_time - last_active_at > TIME_OUT_LIMIT) {
+                console.log(`${node_id} die!`)
+                if (node_id === leader) {
+                    notiLeaderDown()
+                }
+            }
+        }
+    }
+    setInterval(() => {
+        ping()
+        scanPing()
+    }, 1000)
 
     return {
         listen, connect, close,
-        broadcast, direct,
+        broadcast, direct, ping,
         on: emitter.on.bind(emitter),
         off: emitter.off.bind(emitter),
         id: NODE_ID,
         neighbors: () => neighbors.keys(),
         nodes: () => Array.from(all_nodes.keys()),
-        leader: () => leader,
-        changeLeader: () => changeLeader(),
+        leader,
+        changeLeader,
         is_ready,
     };
 };

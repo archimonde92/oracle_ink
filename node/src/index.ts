@@ -38,7 +38,7 @@ const start = async () => {
                 const connect_result = await node.connect(ip, port, () => {
                     console.log(`Connection to ${ip}:${port} established.`);
                 })
-                if (connect_result.is_success) break;
+                // if (connect_result.is_success) break;
                 throw connect_result.error
             } catch (e) {
                 console.log(`Failed to connect to node at ${ip}:${port}`)
@@ -56,6 +56,7 @@ const start = async () => {
 
 const broadcastAnswer = async (address_pair: KeyringPair, public_key: `0x${string}`) => {
     while (true) {
+        console.log(`Broadcast ...`)
         for (let pair_id = 0; pair_id < SYMBOL_LIST.length; pair_id++) {
             const answer = await AggregatorCurrentAnswer(pair_id)
             let message = PackingAnswer(answer)
@@ -70,7 +71,7 @@ const broadcastAnswer = async (address_pair: KeyringPair, public_key: `0x${strin
 
 const submitAnswer = async (address_pair: KeyringPair) => {
     while (true) {
-        if (node.leader() === node.id) {
+        if (node.leader === node.id) {
             for (let pair_id = 0; pair_id < node_answers.length; pair_id++) {
                 if (node_answers[pair_id].length) {
                     const round_id = node_answers[pair_id].length - 1
@@ -81,9 +82,13 @@ const submitAnswer = async (address_pair: KeyringPair) => {
                         const signatures = node_answers[pair_id][round_id].map(el => el.signature)
                         const data = await verifier_contract.readTransmitProcess(LIST_SUBSTRATE_LOCAL_ADDRESS.Alice.address, pair_id, public_keys, answers, signatures)
                         if (data === "Ok") {
-                            console.log(`transmiting pair ${pair_id} at round ${round_id} ...`)
+                            console.log(`transmitting pair ${pair_id} at round ${round_id} ...`)
                             await verifier_contract.transmitProcess(LIST_SUBSTRATE_LOCAL_ADDRESS.Alice, pair_id, public_keys, answers, signatures)
                             node.clearAnswer(pair_id, round_id)
+                            node.changeLeader()
+                        } else {
+                            console.log(`Cannot transmit ...`)
+                            console.log(data)
                         }
                     }
 

@@ -18,7 +18,6 @@ const _addNewAnswer = (answer_msg: TAnswerMessage) => {
     }
 }
 
-
 const _clearAnswer = (pair_id: number, roundId: number) => {
     node_answers[pair_id][roundId] = []
 }
@@ -62,6 +61,7 @@ const connectNode = (port: number, is_leader: boolean) => {
     process.on('SIGINT', async () => {
         console.log("\nGracefully shutting chat node down...");
         await middle_server.deleteNode(node.id)
+        node.changeLeader()
         node.close(() => {
             process.exit();
         });
