@@ -4,11 +4,11 @@ const SYMBOL_LIST = [
         coingecko: "bitcoin",
         decimal: 6
     },
-    {
-        binance: "ETHUSDT",
-        coingecko: "ethereum",
-        decimal: 6
-    }
+    // {
+    //     binance: "ETHUSDT",
+    //     coingecko: "ethereum",
+    //     decimal: 6
+    // }
 
 ]
 

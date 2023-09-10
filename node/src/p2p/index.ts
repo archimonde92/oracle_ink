@@ -358,7 +358,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         off: emitter.off.bind(emitter),
         id: NODE_ID,
         neighbors: () => neighbors.keys(),
-        nodes: () => all_nodes.keys(),
+        nodes: () => Array.from(all_nodes.keys()),
         leader: () => leader,
         changeLeader: () => changeLeader(),
         is_ready,

@@ -47,12 +47,6 @@ class CProphetVerifier implements TProphetVerifier {
         return null
     }
     transmitProcess: (caller: KeyringPair, pair_id: number, public_keys: string[], answers: TAnswerData[], signatures: string[]) => Promise<AnyJson> = async (caller, pair_id, public_keys, answers, signatures) => {
-        console.log({
-            pair_id,
-            public_keys,
-            answers,
-            signatures
-        })
         const block = await this._contract.call("transmitProcess", caller, [pair_id, public_keys, answers.map(Object.values), signatures])
         return block
     }

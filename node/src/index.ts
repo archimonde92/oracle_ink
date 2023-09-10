@@ -1,17 +1,18 @@
 // Import
 import Keyring from '@polkadot/keyring';
+import { KeyringPair } from '@polkadot/keyring/types';
+import { u8aToHex } from '@polkadot/util';
 import { AggregatorCurrentAnswer, PackingAnswer } from './aggregator';
+import { TAnswerData } from './blockchain/contract/prophet_verifier';
+import { node_env } from './env.load';
+import { sleep } from './helper';
+import { connectInfra, middle_server } from './infra';
+import { node, node_answers } from './p2p/node';
+import { SYMBOL_LIST } from './price_source/symbol_list';
+import { DEFAULT_HEARTBEAT } from './default';
 import { verifier_contract } from './blockchain/contract';
 import { LIST_SUBSTRATE_LOCAL_ADDRESS } from './blockchain/polkadot';
-import { TOMLParse, sleep } from './helper';
-import { connectInfra, middle_server } from './infra';
-import { SYMBOL_LIST } from './price_source/symbol_list';
-import { u8aToHex } from '@polkadot/util';
-import { connectNode, node, node_answers } from './p2p/node';
-import { node_config } from './config.load';
-import { node_env } from './env.load';
-import { TAnswerData } from './blockchain/contract/prophet_verifier';
-import { KeyringPair } from '@polkadot/keyring/types';
+
 var ip = require("ip");
 
 export type TAnswerMessage = {
@@ -45,36 +46,47 @@ const start = async () => {
         }
     }
 
-
-
     const mnemonic = node_env.wallet_mnemonic
     const keyring = new Keyring({ type: 'sr25519' });
-    const pair = keyring.addFromUri(mnemonic, { name: 'first pair' }, "ethereum");
-    const public_key = u8aToHex(pair.publicKey)
-    broadcastAnswer(pair, public_key)
-    submitAnswer(pair, public_key)
+    const address_pair = keyring.addFromUri(mnemonic, { name: 'first pair' }, "ethereum");
+    const public_key = u8aToHex(address_pair.publicKey)
+    broadcastAnswer(address_pair, public_key)
+    submitAnswer(address_pair)
 }
 
-const broadcastAnswer = async (pair: KeyringPair, public_key: `0x${string}`) => {
+const broadcastAnswer = async (address_pair: KeyringPair, public_key: `0x${string}`) => {
     while (true) {
         for (let pair_id = 0; pair_id < SYMBOL_LIST.length; pair_id++) {
             const answer = await AggregatorCurrentAnswer(pair_id)
             let message = PackingAnswer(answer)
-            let signature = u8aToHex(pair.sign(message))
-            node.broadcast<TAnswerMessage>({ answer, public_key, signature, pair_id, type: "new_answer" })
+            let signature = u8aToHex(address_pair.sign(message))
+            const answer_msg: TAnswerMessage = { answer, public_key, signature, pair_id, type: "new_answer" }
+            node.broadcast<TAnswerMessage>(answer_msg)
+            node.addNewAnswer(answer_msg)
         }
-        await sleep(10000)
+        await sleep(DEFAULT_HEARTBEAT)
     }
 }
 
-const submitAnswer = async (pair: KeyringPair, public_key: `0x${string}`) => {
+const submitAnswer = async (address_pair: KeyringPair) => {
     while (true) {
         if (node.leader() === node.id) {
-            node_answers
             for (let pair_id = 0; pair_id < node_answers.length; pair_id++) {
-                if (node_answers[pair_id].length) { 
-                    console.log(node_answers[pair_id][1])
-                    // await verifier_contract.transmitProcess(LIST_SUBSTRATE_LOCAL_ADDRESS.Alice, pair_id, [public_key], [answer], [signature])
+                if (node_answers[pair_id].length) {
+                    const round_id = node_answers[pair_id].length - 1
+                    const answer_count = node_answers[pair_id][round_id].length
+                    if (answer_count > (node.nodes().length / 2)) {
+                        const public_keys = node_answers[pair_id][round_id].map(el => el.public_key)
+                        const answers = node_answers[pair_id][round_id].map(el => el.answer)
+                        const signatures = node_answers[pair_id][round_id].map(el => el.signature)
+                        const data = await verifier_contract.readTransmitProcess(LIST_SUBSTRATE_LOCAL_ADDRESS.Alice.address, pair_id, public_keys, answers, signatures)
+                        if (data === "Ok") {
+                            console.log(`transmiting pair ${pair_id} at round ${round_id} ...`)
+                            await verifier_contract.transmitProcess(LIST_SUBSTRATE_LOCAL_ADDRESS.Alice, pair_id, public_keys, answers, signatures)
+                            node.clearAnswer(pair_id, round_id)
+                        }
+                    }
+
                 }
             }
         }
