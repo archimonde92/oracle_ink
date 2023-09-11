@@ -71,7 +71,6 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         })
 
         socket.on('close', () => {
-            notiLeaderDown()
             connections.delete(connectionId);
             emitter.emit('_disconnect', connectionId);
         });
@@ -169,7 +168,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
             }
         }
         if (leader === NODE_ID && all_nodes.size >= 3) {
-            setTimeout(() => { emitter.emit("_message", "test") }, 3000)
+            // setTimeout(() => { emitter.emit("_message", "test") }, 3000)
         }
     }
 
@@ -183,9 +182,14 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
 
     const _randomSelectNewLeader = () => {
         const node_id_array = Array.from(all_nodes.keys()).filter(el => el !== leader)
-        const random_index = Math.floor(Math.random() * node_id_array.length)
-        const new_leader = node_id_array[random_index]
-        return new_leader
+        if (node_id_array.length > 0) {
+            const random_index = Math.floor(Math.random() * node_id_array.length)
+            const new_leader = node_id_array[random_index]
+            setLeader(new_leader)
+            return new_leader
+        }
+        setLeader(NODE_ID)
+        return NODE_ID
     }
 
     const changeLeader = () => {
@@ -246,6 +250,9 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
 
     emitter.on('_disconnect', (connectionId: TUuid) => {
         const nodeId = findNodeId(connectionId);
+        if (nodeId === leader) {
+            LeaderDie()
+        }
         neighbors.delete(nodeId);
         neighbor_active_tracking.delete(nodeId);
         removeNodes([nodeId])
@@ -385,6 +392,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
             leaderChange(packet.message, packet.id, packet.origin, packet.ttl - 1);
         }
         if (packet.type === 'leader_sync') {
+            console.log(packet)
             if (leader !== packet.message) {
                 setLeader(packet.message)
             }
@@ -403,7 +411,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
                 create_at: number,
                 response_at: number
             }
-            console.log(`ping to ${packet.origin} response time=${message.response_at - message.create_at} ms`)
+            // console.log(`ping to ${packet.origin} response time=${message.response_at - message.create_at} ms`)
             neighbor_active_tracking.set(packet.origin, message.response_at)
         }
 
@@ -450,9 +458,9 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         id: NODE_ID,
         neighbors: () => neighbors.keys(),
         nodes: () => Array.from(all_nodes.keys()),
-        leader,
+        leader: () => leader,
         changeLeader,
-        is_ready,
+        is_ready: () => is_ready,
     };
 };
 

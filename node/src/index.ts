@@ -23,6 +23,12 @@ export type TAnswerMessage = {
     type: "new_answer"
 }
 
+export type TSentAnswerMessage = {
+    pair_id: number,
+    round_id: number
+    type: "sent_answer"
+}
+
 const start = async () => {
     const my_port = Number(process.argv[2] || 5000);
     await connectInfra({ node_port: my_port })
@@ -71,12 +77,12 @@ const broadcastAnswer = async (address_pair: KeyringPair, public_key: `0x${strin
 
 const submitAnswer = async (address_pair: KeyringPair) => {
     while (true) {
-        if (node.leader === node.id) {
+        if (node.leader() === node.id) {
             for (let pair_id = 0; pair_id < node_answers.length; pair_id++) {
                 if (node_answers[pair_id].length) {
                     const round_id = node_answers[pair_id].length - 1
                     const answer_count = node_answers[pair_id][round_id].length
-                    if (answer_count > (node.nodes().length / 2)) {
+                    if (answer_count > (node.nodes().length / 2) && !node.isSentAnswer(pair_id, round_id)) {
                         const public_keys = node_answers[pair_id][round_id].map(el => el.public_key)
                         const answers = node_answers[pair_id][round_id].map(el => el.answer)
                         const signatures = node_answers[pair_id][round_id].map(el => el.signature)
@@ -85,6 +91,8 @@ const submitAnswer = async (address_pair: KeyringPair) => {
                             console.log(`transmitting pair ${pair_id} at round ${round_id} ...`)
                             await verifier_contract.transmitProcess(LIST_SUBSTRATE_LOCAL_ADDRESS.Alice, pair_id, public_keys, answers, signatures)
                             node.clearAnswer(pair_id, round_id)
+                            node.broadcast<TSentAnswerMessage>({ type: "sent_answer", pair_id, round_id })
+                            await sleep(2000)
                             node.changeLeader()
                         } else {
                             console.log(`Cannot transmit ...`)

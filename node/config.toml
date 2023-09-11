@@ -1,7 +1,7 @@
 [blockchain]
 provider = "ws://127.0.0.1:9944"
-storage_address="5G8JK5375aAMYjqqvcf9ZAE626kwDXnh6np9qNaJH7tEhJyp"
-verifier_address="5Cy2W21yP4pLijoXv88ybcFoSWBN96MSU4geednPMRQketwQ"
+storage_address="5DUyxhb4EMso7qmXUH5ySuKCEbQoy2w6JSt1zfzo1zsRYQrc"
+verifier_address="5CqhDE3ch6m3oP4sLsBKx1JdreRP22wpVoS16wYXbRWTZqCN"
 
 [node]
 port = 5000
