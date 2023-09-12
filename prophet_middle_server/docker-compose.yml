@@ -1,0 +1,16 @@
+version: "3.7"
+
+services:
+  prophet_middle_server:
+    container_name: prophet_middle_server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6000:6000"
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+
