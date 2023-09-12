@@ -1,7 +1,10 @@
 [blockchain]
-provider = "ws://127.0.0.1:9944"
-storage_address="5DUyxhb4EMso7qmXUH5ySuKCEbQoy2w6JSt1zfzo1zsRYQrc"
-verifier_address="5CqhDE3ch6m3oP4sLsBKx1JdreRP22wpVoS16wYXbRWTZqCN"
+# provider = "ws://127.0.0.1:9944"
+# storage_address="5DUyxhb4EMso7qmXUH5ySuKCEbQoy2w6JSt1zfzo1zsRYQrc"
+# verifier_address="5CqhDE3ch6m3oP4sLsBKx1JdreRP22wpVoS16wYXbRWTZqCN"
+provider = "wss://rococo-contracts-rpc.polkadot.io"
+storage_address="5DPoMFa3vGZaibTjF7awFSEDZ6TA84hMswxW2iotu2uw8NgX"
+verifier_address="5EsdXHezE3QKi7sNbodvKsiRF5YxNjZZnqWhDGJVjJrq5uC7"
 
 [node]
 port = 5000

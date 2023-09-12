@@ -8,7 +8,7 @@ import { AnyJson, ISubmittableResult } from '@polkadot/types/types';
 import { DEFAULT_LOCAL_PROVIDER } from '../../default';
 
 
-const MAX_CALL_WEIGHT = new BN(5_000_000_000_00).isub(BN_ONE);
+const MAX_CALL_WEIGHT = new BN(5_000_000_000_0).isub(BN_ONE);
 const PROOF_SIZE = new BN(1_000_000);
 const storageDepositLimit = null
 let polkadot_api: ApiPromise
