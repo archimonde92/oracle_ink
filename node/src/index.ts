@@ -11,8 +11,9 @@ import { node, node_answers } from './p2p/node';
 import { SYMBOL_LIST } from './price_source/symbol_list';
 import { DEFAULT_HEARTBEAT } from './default';
 import { verifier_contract } from './blockchain/contract';
-import { getAccountBalance, polkadot_api } from './blockchain/polkadot';
+import { getAccountBalance } from './blockchain/polkadot';
 import { node_config } from './config.load';
+import { CronJob } from 'cron'
 
 var ip = require("ip");
 
@@ -70,25 +71,17 @@ const start = async () => {
 }
 
 const broadcastAnswer = async (sign_address_pair: KeyringPair, public_key: `0x${string}`) => {
-    try {
-
-        while (true) {
-            console.log(`Broadcast ...`)
-            for (let pair_id = 0; pair_id < SYMBOL_LIST.length; pair_id++) {
-                const answer = await AggregatorCurrentAnswer(pair_id)
-                let message = PackingAnswer(answer)
-                let signature = u8aToHex(sign_address_pair.sign(message))
-                const answer_msg: TAnswerMessage = { answer, public_key, signature, pair_id, type: "new_answer" }
-                node.broadcast<TAnswerMessage>(answer_msg)
-                node.addNewAnswer(answer_msg)
-            }
-            await sleep(DEFAULT_HEARTBEAT)
+    let job = new CronJob("*/2 * * * *", async () => {
+        for (let pair_id = 0; pair_id < SYMBOL_LIST.length; pair_id++) {
+            const answer = await AggregatorCurrentAnswer(pair_id)
+            let message = PackingAnswer(answer)
+            let signature = u8aToHex(sign_address_pair.sign(message))
+            const answer_msg: TAnswerMessage = { answer, public_key, signature, pair_id, type: "new_answer" }
+            node.broadcast<TAnswerMessage>(answer_msg)
+            node.addNewAnswer(answer_msg)
         }
-    } catch (e) {
-        console.log(`error when broadcast answer`)
-    } finally {
-        broadcastAnswer(sign_address_pair, public_key)
-    }
+    })
+    job.start()
 }
 
 const submitAnswer = async (send_address_pair: KeyringPair) => {

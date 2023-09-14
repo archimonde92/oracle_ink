@@ -49,7 +49,6 @@ const handleRawData = (data: string) => {
 const random4DigitHex = () => Math.random().toString(16).split('.')[1].substr(0, 4);
 const randomUuid = () => new Array(8).fill(0).map(() => random4DigitHex()).join('-');
 const createNode = (options: TNodeOption = { is_leader: false }) => {
-    //
     // Layer 1 - handle all the established connections, store
     // them in a map and emit corresponding events
     const connections = new Map<TUuid, TSocket>();

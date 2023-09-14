@@ -1,15 +1,24 @@
 import { support } from "@polkadot/types/interfaces/definitions"
-import { verifier_contract } from "./blockchain/contract"
-import { LIST_SUBSTRATE_LOCAL_ADDRESS } from "./blockchain/polkadot"
+import { connectListContract, verifier_contract } from "./blockchain/contract"
+import { LIST_SUBSTRATE_LOCAL_ADDRESS, connectPolkadot } from "./blockchain/polkadot"
 import { connectInfra } from "./infra"
+import { AggregatorCurrentAnswer } from "./aggregator"
+import { loadConfig, node_config } from "./config.load"
+import { loadEnv } from "./env.load"
+import { SYMBOL_LIST, getDeviationPercent } from "./price_source/symbol_list"
+import { randomNumber } from "./helper"
 
 const test = async () => {
-    let example_data = '{ "type": "handshake", "data": { "nodeId": "745b-ad97-d048-c7ff-d60a-8bc8-0df4-441e" } }{ "type":"message", "data": { "id":"sync_node", "ttl":255, "type":"node_sync", "message": ["745b-ad97-d048-c7ff-d60a-8bc8-0df4-441e", "5818-b0be-eba0-7450-1f41-1434-9ac5-9aaa", "1877-9229-99b2-7234-93b7-d9b0-5e0f-4034"], "origin":"745b-ad97-d048-c7ff-d60a-8bc8-0df4-441e"} }'
-    let split_data = example_data.split("}{")
-    split_data = split_data.map((el, index) => index === 0 ? el + "}" : "{" + el)
-    let final_data = split_data.map(el => JSON.parse(el))
-    console.log({ split_data })
-    console.log({ final_data })
+    const origin = 10000 * (10 ** SYMBOL_LIST[0].decimal)
+    for (let i = 0; i < 10; i++) {
+        const random_value = getDeviationPercent(randomNumber(-SYMBOL_LIST[0].deviation / 2000, SYMBOL_LIST[0].deviation / 2000, 1))
+        console.log({ origin, random_value_origin: random_value * origin + origin, random_value })
+    }
+    // await loadConfig()
+    // await loadEnv()
+    // await connectPolkadot(node_config.blockchain.provider)
+    // await connectListContract()
+    // console.log(await AggregatorCurrentAnswer(0))
 }
 
 

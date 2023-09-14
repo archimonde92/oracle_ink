@@ -1,10 +1,12 @@
 import { connectListContract } from "./blockchain/contract"
 import { connectPolkadot } from "./blockchain/polkadot"
 import { loadConfig, node_config } from "./config.load"
-import { loadEnv, node_env } from "./env.load"
+import { loadEnv } from "./env.load"
 import { createMiddleServer } from "./middle_server"
 import { connectNode } from "./p2p/node"
+
 let middle_server: Awaited<ReturnType<typeof createMiddleServer>>
+
 type TInfraOption = {
     node_port: number
 }
