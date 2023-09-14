@@ -6,10 +6,10 @@
   "scripts": {
     "test": "ts-node src/test.ts",
     "dev": "ts-node src/index.ts",
-    "start": "node --max-old-space-size=4096 dist/index.js",
-    "docker": "cp -a ../../prophet-node/. ./&&cat config.toml&&node --max-old-space-size=4096 dist/index.js",
+    "start": "node --max-old-space-size=2048 dist/index.js",
+    "docker": "cp -a ../../prophet-node/. ./&&cat config.toml&&node --max-old-space-size=2048 dist/index.js",
     "build": "rm -rf dist && tsc",
-    "build-docker": "docker build . -t archimonde13/prophet-node:arm_0.2&&docker build . --platform linux/amd64 -t archimonde13/prophet-node:0.2"
+    "build-docker": "docker build . -t archimonde13/prophet-node:arm_0.1&&docker build . --platform linux/amd64 -t archimonde13/prophet-node:0.1"
   },
   "author": "",
   "license": "ISC",
