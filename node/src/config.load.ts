@@ -5,11 +5,15 @@ const CONFIG_PATH = "config.toml"
 type TConfig = {
     blockchain: {
         provider: string,
-        storage_address:string,
-        verifier_address:string,
+        storage_address: string,
+        verifier_address: string,
     },
     middle_node: {
         url: string
+    },
+    node: {
+        port: number,
+        external_ip: string
     }
 }
 

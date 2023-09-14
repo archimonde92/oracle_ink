@@ -53,6 +53,16 @@ interface TContractInstance {
     read: (method: string, address: string, params?: any[]) => Promise<AnyJson>,
     call: (method: string, key_pair: KeyringPair, params?: any[]) => Promise<AnyJson>
 }
+
+const getAccountBalance = async (address: string) => {
+    try {
+        const account_balance_string = ((await polkadot_api.query.system.account(address)).toHuman() as any)["data"]["free"]
+        return account_balance_string.split(",").join("") as string
+    } catch (e) {
+        throw new Error(`Cannot fetch balance of ${address}`)
+    }
+}
+
 const connectContract: (metadata: any, address: string | AccountId) => TContractInstance = (metadata, address) => {
     checkPolkadotApiReady()
     const instance = new ContractPromise(polkadot_api, metadata, address)
@@ -84,7 +94,8 @@ const readContract = async (contract: ContractPromise, method: string, address: 
             throw new Error(`Error when read method ${method} ${read_result.result.asErr}`);
         }
     } catch (e: any) {
-        throw new Error(`Error when read method ${method} ${e["message"] || e["stack"] || JSON.stringify(e)}`)
+        // throw new Error(`Error when read method ${method} ${e["message"] || e["stack"] || JSON.stringify(e)}`)
+        throw e
     }
 }
 
@@ -122,6 +133,7 @@ const callContract = async (contract: ContractPromise, method: string, key_pair:
 export {
     connectPolkadot,
     connectContract,
+    getAccountBalance,
     polkadot_api,
     readContract as callContract,
     LIST_SUBSTRATE_LOCAL_ADDRESS,

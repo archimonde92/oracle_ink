@@ -2,7 +2,7 @@ import { config as dotenv_config } from "dotenv";
 import { getEnvString, getFileName, logWithPrefix } from "./helper";
 
 type TEnv = {
-    wallet_mnemonic: string
+    wallet_mnemonic: string,
 }
 
 const ENV_PATH = ".env"

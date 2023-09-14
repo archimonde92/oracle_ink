@@ -65,8 +65,10 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         //Reproduce new message to local node
         socket.on('data', (data) => {
             const final_data = handleRawData(data.toString())
-            for (const message of final_data) {
-                emitter.emit("_message", { connectionId, message })
+            if (final_data) {
+                for (const message of final_data) {
+                    emitter.emit("_message", { connectionId, message })
+                }
             }
         })
 

@@ -16,7 +16,6 @@ const AggregatorCurrentAnswer: (pair_id: number) => Promise<TAnswerData> = async
         }
     }
     const latest_answer = await storage_contract.getLatestAnswer(LIST_SUBSTRATE_LOCAL_ADDRESS.Alice.address, pair_id)
-
     const answer: TAnswerData = {
         value: Math.floor(avg(price_list) * (10 ** SYMBOL_LIST[pair_id].decimal)),
         decimal: SYMBOL_LIST[pair_id].decimal,
