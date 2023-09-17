@@ -48,11 +48,7 @@ const connectPolkadot = async (provider: string = DEFAULT_LOCAL_PROVIDER) => {
         throw e
     }
 }
-interface TContractInstance {
-    instance: ContractPromise,
-    read: (method: string, address: string, params?: any[]) => Promise<AnyJson>,
-    call: (method: string, key_pair: KeyringPair, params?: any[]) => Promise<AnyJson>
-}
+
 
 const getAccountBalance = async (address: string) => {
     try {
@@ -61,6 +57,12 @@ const getAccountBalance = async (address: string) => {
     } catch (e) {
         throw new Error(`Cannot fetch balance of ${address}`)
     }
+}
+
+interface TContractInstance {
+    instance: ContractPromise,
+    read: (method: string, address: string, params?: any[]) => Promise<AnyJson>,
+    call: (method: string, key_pair: KeyringPair, params?: any[]) => Promise<AnyJson>
 }
 
 const connectContract: (metadata: any, address: string | AccountId) => TContractInstance = (metadata, address) => {
@@ -75,7 +77,6 @@ const connectContract: (metadata: any, address: string | AccountId) => TContract
 
 const readContract = async (contract: ContractPromise, method: string, address: string, params: any[]) => {
     try {
-
         const gasLimit = polkadot_api?.registry.createType('WeightV2', {
             refTime: MAX_CALL_WEIGHT,
             proofSize: PROOF_SIZE,
@@ -135,7 +136,6 @@ export {
     connectContract,
     getAccountBalance,
     polkadot_api,
-    readContract as callContract,
     LIST_SUBSTRATE_LOCAL_ADDRESS,
     TContractInstance
 }

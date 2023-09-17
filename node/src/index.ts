@@ -9,7 +9,6 @@ import { sleep } from './helper';
 import { connectInfra, middle_server } from './infra';
 import { node, node_answers } from './p2p/node';
 import { SYMBOL_LIST } from './price_source/symbol_list';
-import { DEFAULT_HEARTBEAT } from './default';
 import { verifier_contract } from './blockchain/contract';
 import { getAccountBalance } from './blockchain/polkadot';
 import { node_config } from './config.load';

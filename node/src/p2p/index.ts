@@ -66,7 +66,9 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
             const final_data = handleRawData(data.toString())
             if (final_data) {
                 for (const message of final_data) {
-                    emitter.emit("_message", { connectionId, message })
+                    if (message) { 
+                        emitter.emit("_message", { connectionId, message })
+                    }
                 }
             }
         })
