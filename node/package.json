@@ -5,7 +5,11 @@
   "main": "index.js",
   "scripts": {
     "test": "ts-node src/test.ts",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "start": "node --max-old-space-size=2048 dist/index.js",
+    "docker": "cp -a ../../prophet-node/. ./&&cat config.toml&&node --max-old-space-size=2048 dist/index.js",
+    "build": "rm -rf dist && tsc",
+    "build-docker": "docker build . -t archimonde13/prophet-node:arm_0.1&&docker build . --platform linux/amd64 -t archimonde13/prophet-node:0.1"
   },
   "author": "",
   "license": "ISC",
@@ -22,6 +26,7 @@
     "@polkadot/util": "^12.4.2",
     "@polkadot/wasm-crypto": "^7.2.2",
     "bignumber.js": "^9.1.2",
+    "cron": "^2.4.3",
     "ip": "^1.1.8",
     "toml": "^3.0.0"
   }
