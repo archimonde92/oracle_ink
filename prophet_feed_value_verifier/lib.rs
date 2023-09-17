@@ -156,7 +156,7 @@ mod prophet_feed_value_verifier {
     }
 
     impl ProphetFeedValueVerifier {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
+        /// Constructor that initializes the `Hash` value to the given `storage_contract_code_hash`. That will using for cross-call to Prophet Storage
         #[ink(constructor)]
         pub fn new(storage_contract_code_hash: Hash) -> Self {
             let storage_contract = ProphetFeedValueStorageRef::new(Self::env().caller())
@@ -172,20 +172,15 @@ mod prophet_feed_value_verifier {
             }
         }
 
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
-
         /// Get storage contract address
         #[ink(message)]
         pub fn get_storage_address(&self) -> AccountId {
             self.storage_contract.get_contract_address()
         }
 
+        /// Function for add new node 
+        /// 
+        /// ONLY called by `owner`
         #[ink(message)]
         pub fn add_node(&mut self, new_node: TNodePublicKey) -> Result<(), Error> {
             self._ensure_owner()?;
@@ -197,6 +192,9 @@ mod prophet_feed_value_verifier {
             Ok(())
         }
 
+        /// Function for remove node
+        /// 
+        /// ONLY called by `owner`
         #[ink(message)]
         pub fn remove_node(&mut self, node_public_key: TNodePublicKey) -> Result<(), Error> {
             self._ensure_owner()?;
@@ -208,9 +206,9 @@ mod prophet_feed_value_verifier {
             Ok(())
         }
 
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
+        /// Function for update an answer to storage contract
+        ///  
+        /// ONLY called by `owner`
         #[ink(message)]
         pub fn restricted_update_new_answer(
             &mut self,
@@ -224,6 +222,9 @@ mod prophet_feed_value_verifier {
             self._update_new_answer(pair_id, round_id, value, decimal, timestamp)
         }
 
+        /// Function for update many answers to storage contract
+        ///  
+        /// ONLY called by `owner`
         #[ink(message)]
         pub fn restricted_update_new_answers(
             &mut self,
@@ -233,6 +234,9 @@ mod prophet_feed_value_verifier {
             self._update_new_answers(answers)
         }
 
+        /// Function for aggregate answer and cross-call to update new answer value
+        /// 
+        /// called by `Node`
         #[ink(message)]
         pub fn transmit_process(
             &mut self,
@@ -254,11 +258,6 @@ mod prophet_feed_value_verifier {
                 aggregated_answer.timestamp,
             )?;
             Ok(())
-        }
-
-        #[ink(message)]
-        pub fn get_verifier(&self) -> AccountId {
-            self.storage_contract.get_verifier_contract()
         }
     }
 

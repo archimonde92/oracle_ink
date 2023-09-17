@@ -132,13 +132,13 @@ mod prophet_feed_value_storage {
             }
         }
 
-        ///Get current verifier contract address
+        ///Get current `verifier contract address`
         #[ink(message)]
         pub fn get_verifier_contract(&self) -> AccountId {
             self.verifier_contract_address
         }
 
-        /// Get a answer per `pair_id` and `round_id`
+        /// Get a answer of `pair_id` and `round_id`
         #[ink(message)]
         pub fn get_answer(
             &self,
@@ -176,8 +176,10 @@ mod prophet_feed_value_storage {
             }
         }
 
-        /// Update answers
-        /// Only call from verifier
+        /// Update a answer
+        /// 
+        /// ONLY called by `verifier_contract_address`.
+        /// 
         /// Emit event `NewAnswer` if it is a new answer
         #[ink(message)]
         pub fn set_answer(
@@ -211,8 +213,10 @@ mod prophet_feed_value_storage {
             Ok(())
         }
 
-        /// Update answers
-        /// Only call from verifier
+        /// Update many answers
+        /// 
+        /// ONLY called by `verifier_contract_address`.
+        /// 
         /// Emit event `NewAnswer` if it is a new answer
         #[ink(message)]
         pub fn set_answers(&mut self, answers: Vec<AnswerParam>) -> Result<(), Error> {
@@ -246,8 +250,9 @@ mod prophet_feed_value_storage {
             Ok(())
         }
 
-        /// Set verifier contract
-        /// ONLY called by owner
+        /// Set verifier contract.
+        /// 
+        /// ONLY called by `owner`
         #[ink(message)]
         pub fn set_verifier_contract(
             &mut self,
@@ -262,12 +267,6 @@ mod prophet_feed_value_storage {
         #[ink(message)]
         pub fn get_owner(&self) -> AccountId {
             self.owner
-        }
-
-        /// Get this contract address
-        #[ink(message)]
-        pub fn get_contract_address(&self) -> AccountId {
-            self.env().account_id()
         }
     }
 
