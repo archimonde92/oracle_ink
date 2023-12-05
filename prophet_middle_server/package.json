@@ -7,13 +7,19 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node src/index.ts",
     "start": "node --max-old-space-size=4096 dist/index.js",
-    "build": "rm -rf dist && tsc"
+    "docker": "cp -a /prophet-middle/. ./&&cat .env&&node --max-old-space-size=2048 dist/index.js",
+    "build": "rm -rf dist && tsc",
+    "build-docker": "docker build . -t archimonde13/prophet-middle-server:arm_0.1&&docker build . --platform linux/amd64 -t archimonde13/prophet-middle-server:0.1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@polkadot/api": "^10.9.1",
+    "@polkadot/api-contract": "^10.9.1",
+    "dotenv": "^16.3.1",
     "fastify": "^4.22.2",
     "ip": "^1.1.8",
+    "mongodb": "^6.1.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2"
   }

@@ -1,9 +1,27 @@
 import Fastify from "fastify";
+import { collections } from "./mongo";
 const IP = require('ip');
 
 const fastify = Fastify({ logger: true });
 type TNode = { id: string, ip: string, port: number }
+type TPair = { id: number, name: string, category: "crypto", deviation: number, heartbeat: number }
 let nodes: TNode[] = []
+export let pairs: TPair[] = [
+    {
+        id: 0,
+        name: "Bitcoin",
+        category: "crypto",
+        deviation: 5000,
+        heartbeat: 60
+    },
+    {
+        id: 1,
+        name: "Ethereum",
+        category: "crypto",
+        deviation: 5000,
+        heartbeat: 60
+    },
+]
 
 fastify.addHook("preHandler", (req, res, done) => {
     res.header("Access-Control-Allow-Origin", "*");
@@ -73,6 +91,72 @@ fastify.delete("/nodes", async (req, rep) => {
             nodes.splice(index, 1)
         }
         rep.code(200).send("Ok")
+    } catch (error: any) {
+        return rep.code(404).send({
+            error: true,
+            message: error?.message,
+        })
+    }
+})
+
+fastify.get("/pairs", async (req, rep) => {
+    try {
+        rep.code(200).send(pairs)
+    } catch (error: any) {
+        return rep.code(404).send({
+            error: true,
+            message: error?.message,
+        })
+    }
+})
+
+fastify.get("/pairs/prices", async (req, rep) => {
+    try {
+        const { id, from = new Date(0), to = new Date() } = req.query as { id: string, from: string, to: string }
+        const _from = new Date(Number(from))
+        const _to = new Date(Number(to))
+        const queryAggregateChart = [
+            {
+                $match: {
+                    id: Number(id),
+                    created_at: {
+                        $gte: _from,
+                        $lte: _to,
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id: {
+                        $dateTrunc: {
+                            date: "$created_at",
+                            unit: "hour",
+                        },
+                    },
+                    value: {
+                        $avg: "$price",
+                    },
+                    decimal: {
+                        $last: "$decimal",
+                    },
+                },
+            },
+            {
+                $sort: {
+                    _id: 1,
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    value: 1,
+                    decimal: 1,
+                    timestamp: "$_id",
+                },
+            },
+        ];
+        const data = await collections.pair_prices.aggregate(queryAggregateChart).toArray()
+        rep.code(200).send(data)
     } catch (error: any) {
         return rep.code(404).send({
             error: true,
