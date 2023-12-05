@@ -103,7 +103,7 @@ const submitAnswer = async (send_address_pair: KeyringPair) => {
                                 const data = await verifier_contract.readTransmitProcess(send_address_pair.address, pair_id, public_keys, answers, signatures)
                                 // const data = "Ok"
                                 if (data === "Ok") {
-                                    console.log(`transmitting pair ${pair_id} at round ${round_id} ...`)
+                                    console.log(`${new Date().toISOString()}: Transmitting pair ${pair_id} at round ${round_id} ...`)
                                     await verifier_contract.transmitProcess(send_address_pair, pair_id, public_keys, answers, signatures)
                                     node.clearAnswer(pair_id, round_id)
                                     node.broadcast<TSentAnswerMessage>({ type: "sent_answer", pair_id, round_id })
@@ -111,7 +111,6 @@ const submitAnswer = async (send_address_pair: KeyringPair) => {
                                     node.changeLeader()
                                 } else {
                                     console.log(`Cannot transmit ...`)
-                                    console.log(data)
                                 }
                             }
 
@@ -123,6 +122,7 @@ const submitAnswer = async (send_address_pair: KeyringPair) => {
         }
     } catch (e) {
         console.log(`error when submit answer`)
+        console.log(e)
         node.changeLeader()
     } finally {
         submitAnswer(send_address_pair)

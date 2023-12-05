@@ -202,7 +202,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
     }
 
     const setLeader = (new_lead_node_id: TUuid) => {
-        console.log(`New leader = ${new_lead_node_id}`)
+        console.log(`${new Date().toISOString()}  New leader = ${new_lead_node_id}`)
         leader = new_lead_node_id
     }
 
@@ -343,7 +343,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
     }
 
     const notiLeaderDown = (origin = NODE_ID, ttl = 255) => {
-        console.log(`LeaderDown`)
+        console.log(`Leader Down`)
         sendPacket({ id: leader + "down", ttl, type: 'leader_down', message: leader, origin });
     }
 
@@ -395,13 +395,12 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
             leaderChange(packet.message, packet.id, packet.origin, packet.ttl - 1);
         }
         if (packet.type === 'leader_sync') {
-            console.log(packet)
             if (leader !== packet.message) {
                 setLeader(packet.message)
             }
         }
         if (packet.type === 'leader_down') {
-            console.log(`${packet.message} leader_down!`)
+            console.log(`${packet.message} leader down!`)
             LeaderDie()
             notiLeaderDown()
         }
@@ -441,7 +440,7 @@ const createNode = (options: TNodeOption = { is_leader: false }) => {
         const scan_time = +new Date()
         for (let [node_id, last_active_at] of neighbor_active_tracking.entries()) {
             if (scan_time - last_active_at > TIME_OUT_LIMIT) {
-                console.log(`${node_id} die!`)
+                console.log(`Found ${node_id} die!`)
                 if (node_id === leader) {
                     notiLeaderDown()
                 }

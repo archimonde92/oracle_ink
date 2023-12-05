@@ -25,12 +25,13 @@ const _clearAnswer = (pair_id: number, roundId: number) => {
 
 const already_sent_answers: boolean[][] = [[]]
 const _addSentAnswer = (pair_id: number, round_id: number) => {
-    console.log(`set sent message of pair_id = ${pair_id}, round_id=${round_id}`)
+    console.log(`Set sent message of pair_id = ${pair_id}, round_id=${round_id}`)
     if (!already_sent_answers[pair_id]) already_sent_answers[pair_id] = []
     already_sent_answers[pair_id][round_id] = true
 }
 
 const _isSentAnswer = (pair_id: number, round_id: number) => {
+    if (!already_sent_answers[pair_id]) already_sent_answers[pair_id] = []
     return already_sent_answers[pair_id][round_id] ? true : false
 }
 
@@ -50,7 +51,6 @@ const connectNode = (port: number, is_leader: boolean) => {
     // Start local node and print help
     node.listen(port, () => {
         console.log(`Prophet node is up at port ${port}.`);
-        console.log(``);
 
         node.on('connect', ({ nodeId }) => {
             console.log(`New node connected: ${nodeId}`);
@@ -78,7 +78,7 @@ const connectNode = (port: number, is_leader: boolean) => {
 
     // Handle CTRL C to gracefully shut everything down
     process.on('SIGINT', async () => {
-        console.log("\nGracefully shutting chat node down...");
+        console.log("\nGracefully shutting node down...");
         await middle_server.deleteNode(node.id)
         node.close(() => {
             process.exit();

@@ -27,16 +27,13 @@ class CProphetVerifier implements TProphetVerifier {
         this._contract = connectContract(prophet_feed_value_verifier_metadata, address)
     }
     readTransmitProcess: (caller: string, pair_id: number, public_keys: string[], answers: TAnswerData[], signatures: string[]) => Promise<AnyJson> = async (caller: string, pair_id: number, public_keys: string[], answers: TAnswerData[], signatures: string[]) => {
-        console.log({
-            pair_id,
-            public_keys,
-            answers,
-            signatures,
-        })
+        console.log(`Check transmit data: ${JSON.stringify({ pair_id, public_keys, answers, signatures, })}`)
         const read_result = await this._contract.read("transmitProcess", caller, [pair_id, public_keys, answers.map(Object.values), signatures])
         if (read_result && read_result["Ok"]) {
+            console.log(`Data ready to send!`)
             return read_result["Ok"]
         }
+        console.log(`Data NOT ready to send!`)
         return null
     }
     getStorageAddress: (caller: string) => Promise<any> = async (caller) => {

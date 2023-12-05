@@ -41,6 +41,9 @@ const connectPolkadot = async (provider: string = DEFAULT_LOCAL_PROVIDER) => {
         }
 
         polkadot_api = await ApiPromise.create({ provider: wsProvider });
+        polkadot_api.on("disconnected", () => {
+            process.exit(0)
+        })
         console.log(`Connect polkadot chain through provider ${provider} success! Last block hash is: ${polkadot_api.genesisHash.toHex()}`)
     } catch (e) {
         console.log(`ERROR: Connect polkadot chain through provider ${provider} failed by reason:`);
@@ -102,7 +105,6 @@ const readContract = async (contract: ContractPromise, method: string, address: 
 
 const callContract = async (contract: ContractPromise, method: string, key_pair: KeyringPair, params: any[]) => {
     try {
-        console.log(...params)
         const gasLimit = polkadot_api?.registry.createType('WeightV2', {
             refTime: MAX_CALL_WEIGHT,
             proofSize: PROOF_SIZE,
@@ -127,6 +129,7 @@ const callContract = async (contract: ContractPromise, method: string, key_pair:
         })
         return result.status.asInBlock.toHuman()
     } catch (e: any) {
+        console.log(...params)
         throw new Error(`Error when call method ${method} ${e["message"] || e["stack"] || JSON.stringify(e)}`)
     }
 }
