@@ -9,7 +9,8 @@
     "start": "node --max-old-space-size=2048 dist/index.js",
     "docker": "cp -a ../../prophet-node/. ./&&cat config.toml&&node --max-old-space-size=2048 dist/index.js",
     "build": "rm -rf dist && tsc",
-    "build-docker": "docker build . -t archimonde13/prophet-node:arm_0.1&&docker build . --platform linux/amd64 -t archimonde13/prophet-node:0.1"
+    "build-docker": "docker build . -t archimonde13/prophet-node:arm_0.1&&docker build . --platform linux/amd64 -t archimonde13/prophet-node:0.1&&docker push archimonde13/prophet-node:arm_0.1",
+    "docker-push": "docker push archimonde13/prophet-node:0.1&&docker push archimonde13/prophet-node:arm_0.1"
   },
   "author": "",
   "license": "ISC",
