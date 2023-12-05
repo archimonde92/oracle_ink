@@ -6,12 +6,12 @@ const SYMBOL_LIST = [
         decimal: 6,
         deviation: 5000
     },
-    // {
-    //     binance: "ETHUSDT",
-    //     coingecko: "ethereum",
-    //     decimal: 6
-    // }
-
+    {
+        binance: "ETHUSDT",
+        coingecko: "ethereum",
+        decimal: 6,
+        deviation: 5000
+    }
 ]
 
 const getDeviationPercent = (deviation: number) => deviation / 1e6
