@@ -19,10 +19,9 @@ const main = async () => {
    const keyring = new Keyring({ type: 'sr25519' });
    const caller = keyring.createFromUri('//Alice').address
    //Get a answer from The Prophet Contract. To get the latest answer of pair_id=0
-
    setInterval(async () => {
       for (let pair of pairs) {
-         let { id } = pair
+         let { id, last_price } = pair
          const answer: TAnswerData | null = await getLatestAnswer(storage_contract_instance, caller, id)
          if (answer) {
             const { upsertedCount, modifiedCount } = await collections.pair_prices.updateOne({ id, created_at: new Date(answer.timestamp * 1000) }, {
@@ -31,9 +30,10 @@ const main = async () => {
                   decimal: answer?.decimal,
                }
             }, { upsert: true })
+            pair.last_price = Math.round(Math.round((answer?.value / answer?.decimal) * 100) / 100)
             if (upsertedCount) {
                console.log(`Update new answer of pair ${id}:`, JSON.stringify(answer))
-            } else { 
+            } else {
                console.log(`Update ${modifiedCount} old answer!`)
             }
          }

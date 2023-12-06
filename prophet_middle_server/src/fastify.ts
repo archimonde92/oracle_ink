@@ -4,7 +4,7 @@ const IP = require('ip');
 
 const fastify = Fastify({ logger: true });
 type TNode = { id: string, ip: string, port: number }
-type TPair = { id: number, name: string, category: "crypto", deviation: number, heartbeat: number }
+type TPair = { id: number, name: string, category: "crypto", deviation: number, heartbeat: number, last_price?: number }
 let nodes: TNode[] = []
 export let pairs: TPair[] = [
     {
@@ -12,14 +12,16 @@ export let pairs: TPair[] = [
         name: "Bitcoin",
         category: "crypto",
         deviation: 5000,
-        heartbeat: 60
+        heartbeat: 60,
+        last_price: 0
     },
     {
         id: 1,
         name: "Ethereum",
         category: "crypto",
         deviation: 5000,
-        heartbeat: 60
+        heartbeat: 60,
+        last_price: 0
     },
 ]
 
@@ -164,7 +166,6 @@ fastify.get("/pairs/prices", async (req, rep) => {
         })
     }
 })
-
 
 export const startFastifyServer = async () => {
     try {
