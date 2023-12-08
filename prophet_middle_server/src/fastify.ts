@@ -4,8 +4,9 @@ const IP = require('ip');
 
 const fastify = Fastify({ logger: true });
 type TNode = { id: string, ip: string, port: number }
-type TPair = { id: number, name: string, category: "crypto", deviation: number, heartbeat: number, last_price?: number }
+type TPair = { id: number, name: string, category: "crypto", deviation: number, heartbeat: number, last_price?: number, last_update_at?: Date }
 let nodes: TNode[] = []
+
 export let pairs: TPair[] = [
     {
         id: 0,
@@ -13,7 +14,6 @@ export let pairs: TPair[] = [
         category: "crypto",
         deviation: 5000,
         heartbeat: 60,
-        last_price: 0
     },
     {
         id: 1,
@@ -21,9 +21,12 @@ export let pairs: TPair[] = [
         category: "crypto",
         deviation: 5000,
         heartbeat: 60,
-        last_price: 0
     },
 ]
+
+export const updatePairs = (new_pairs: TPair[]) => {
+    pairs = new_pairs
+}
 
 fastify.addHook("preHandler", (req, res, done) => {
     res.header("Access-Control-Allow-Origin", "*");
